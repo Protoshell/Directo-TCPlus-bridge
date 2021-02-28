@@ -1,0 +1,22 @@
+AllCops:
+  NewCops: enable
+
+Layout/EndOfLine:
+  EnforcedStyle: lf
+Layout/LineLength:
+  Max: 150
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: no_comma
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: no_comma
+Style/NumericLiterals:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 20
+
+Metrics/AbcSize:
+  Max: 25.00

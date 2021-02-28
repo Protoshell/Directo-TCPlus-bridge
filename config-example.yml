@@ -1,0 +1,22 @@
+# These can also be set by environment variables: DIRECTO_ORGANIZATION and DIRECTO_API_KEY
+# Remove or comment DirectoAPI from here if you use environment variables
+DirectoAPI:
+  Organization: "demo_ee"
+  APIKey: "20DAF3F822B782AF12D1198C23F45604"
+
+WarehouseLocation: 'TEST'
+
+OrderStatuses:
+  New: "Siirrä_Varastoautomaatille"
+  MovedToTcplus: "Siirretty_jonoon_Automaatille"
+  ReadyFromTcplus: "Hyllytys/Keräily_Valmis"
+  RequestCancellation: "Peruuta"
+  Cancelled: "Peruutettu"
+  CancelletionError: "Peruutusvirhe"
+  GenericError: "Virhe_Varastoautomaatilla"
+
+Directories:
+  Items: 'C:/Constructor/WMS/Items'
+  Orders: 'C:/Constructor/WMS/Orders'
+  PurchaseOrders: 'C:/Constructor/WMS/Purchase orders'
+  Results: 'C:/Constructor/WMS/Result'
