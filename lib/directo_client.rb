@@ -22,13 +22,10 @@ class DirectoClient
     @config = { organization: organization }
   end
 
-  def items(code = nil, timestamp = '1.1.1970', raw = false)
-    options = {}
-    options[:query] = @auth
-    options[:query]['code'] = code unless code.nil?
-    options[:query]['get'] = '1'
-    options[:query]['what'] = 'item'
-    options[:query]['ts'] = timestamp if code.nil?
+  def items(query_options = {}, raw = false)
+    options = default_get_options('item')
+    options[:query] = options[:query].merge(query_options)
+    options[:query]['ts'] = '1.1.1970' if options[:query]['code'].nil? && options[:query]['ts'].nil?
     response = self.class.get("/#{@config[:organization]}/xmlcore.asp", options)
     check_read_error(response)
 
@@ -42,24 +39,20 @@ class DirectoClient
   end
 
   def item_by_code(code)
-    xml_doc = Nokogiri::XML(items(code, nil, true).body)
+    xml_doc = Nokogiri::XML(items({ 'code' => code }, true).body)
     xml_doc.at_css('transport item')
   end
 
   def items_by_timestamp(timestamp)
-    items(nil, timestamp)
+    logger.debug "Getting changed items since #{timestamp}"
+    items({ 'ts' => timestamp })
   end
 
-  def deliveries(warehouse, status, number, raw = false)
-    raise ArgumentError unless warehouse || status || number
+  def deliveries(query_options, raw = false)
+    raise ArgumentError unless query_options['stock'] || query_options['status'] || query_options['number']
 
-    options = {}
-    options[:query] = @auth
-    options[:query]['get'] = '1'
-    options[:query]['what'] = 'delivery'
-    options[:query]['number'] = number
-    options[:query]['stock'] = warehouse
-    options[:query]['status'] = status
+    options = default_get_options('delivery')
+    options[:query] = options[:query].merge(query_options)
     response = self.class.get("/#{@config[:organization]}/xmlcore.asp", options)
     check_read_error(response)
 
@@ -73,7 +66,7 @@ class DirectoClient
   end
 
   def delivery_by_number(number)
-    response = deliveries(nil, nil, number, true)
+    response = deliveries({ 'number' => number }, true)
     raise UnknownOrderError, "Unable to get delivery: #{number}" if response.parsed_response['transport'].nil?
 
     xml_doc = Nokogiri::XML(response.body)
@@ -81,23 +74,18 @@ class DirectoClient
   end
 
   def deliveries_by_warehouse(warehouse)
-    deliveries(warehouse, nil, nil)
+    deliveries({ 'stock' => warehouse })
   end
 
   def deliveries_by_status(status)
-    deliveries(nil, status, nil)
+    deliveries({ 'status' => status })
   end
 
-  def transfers(warehouse, status, number, raw = false)
-    raise ArgumentError unless warehouse || status || number
+  def transfers(query_options, raw = false)
+    raise ArgumentError unless query_options['tostock'] || query_options['status'] || query_options['number'] || query_options['fromstock']
 
-    options = {}
-    options[:query] = @auth
-    options[:query]['get'] = '1'
-    options[:query]['what'] = 'movement'
-    options[:query]['number'] = number
-    options[:query]['tostock'] = warehouse
-    options[:query]['status'] = status
+    options = default_get_options('movement')
+    options[:query] = options[:query].merge(query_options)
     response = self.class.get("/#{@config[:organization]}/xmlcore.asp", options)
     check_read_error(response)
 
@@ -111,15 +99,15 @@ class DirectoClient
   end
 
   def transfers_by_warehouse(warehouse)
-    transfers(warehouse, nil, nil)
+    transfers({ 'tostock' => warehouse })
   end
 
   def transfers_by_status(status)
-    transfers(nil, status, nil)
+    transfers({ 'status' => status })
   end
 
   def transfer_by_number(number)
-    response = transfers(nil, nil, number, true)
+    response = transfers({ 'number' => number }, true)
 
     xml_doc = Nokogiri::XML(response.body)
     xml_doc.at_css('transport movement')
@@ -161,6 +149,14 @@ class DirectoClient
   end
 
   private
+
+  def default_get_options(type)
+    options = {}
+    options[:query] = @auth.dup
+    options[:query]['get'] = '1'
+    options[:query]['what'] = type
+    options
+  end
 
   def check_read_error(response)
     return if response.ok?

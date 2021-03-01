@@ -10,6 +10,7 @@ class Jobs
 
   def initialize
     @config = Configuration.new
+    @last_item_sync = nil
     @erp_client = if @config.config('DirectoAPI').nil?
                     DirectoClient.new
                   else
@@ -20,23 +21,40 @@ class Jobs
                   end
   end
 
-  def synchronize_all_items
-    items = @erp_client.items
-
+  def synchronize_items
+    # TODO: Move to configurations
+    hours_from_history = 6
+    sync_time = DateTime.now
+    items = if @last_item_sync.nil?
+              @erp_client.items
+            else
+              @erp_client.items_by_timestamp((@last_item_sync - (hours_from_history / 24.0)).strftime('%d.%m.%Y %H:%M'))
+            end
     write_file_contents("#{@config.config('Directories')['Items']}/items.xml", items_to_xml(parse_response_items(items)))
+
+    @last_item_sync = sync_time
   end
 
   def synchronize_deliveries
     logger.info 'Getting new deliveries'
-    response = @erp_client.deliveries(@config.config('WarehouseLocation'), @config.config('OrderStatuses')['New'], nil)
+    response = @erp_client.deliveries(
+      {
+        'stock' => @config.config('WarehouseLocation'),
+        'status' => @config.config('OrderStatuses')['New']
+      }
+    )
     parse_response_deliveries(response)
   end
 
   def synchronize_transfers
     logger.info 'Getting new warehouse transfers'
-    # TODO: Enable after status search fixed
-    # response = @erp_client.transfers(@config.config('WarehouseLocation'), @config.config('OrderStatuses')['New'], nil)
-    response = @erp_client.transfers(@config.config('WarehouseLocation'), nil, nil)
+    # TODO: Enable status filter after search fixed
+    response = @erp_client.transfers(
+      {
+        'tostock' => @config.config('WarehouseLocation') # ,
+        # 'status' => @config.config('OrderStatuses')['New']
+      }
+    )
     parse_response_transfers(response)
   rescue Errno::ETIMEDOUT => e
     logger.error e.message
@@ -223,10 +241,10 @@ class Jobs
     end
   end
 
-  def read_file_contents(file)
-    f = File.open(file)
-    data = f.read
-    f.close
+  def read_file_contents(filename)
+    file = File.open(filename)
+    data = file.read
+    file.close
     data
   end
 
@@ -238,6 +256,7 @@ class Jobs
       ordernumber = data.at_css('OrderNumber').content
       transfers[ordernumber] = @erp_client.transfer_by_number(ordernumber) unless transfers[ordernumber]
       transfers[ordernumber].at_xpath("//row[@item='#{data.at_css('ArticleNumber').content}']")['movedqty'] = data.at_css('Delivered').content
+      # TODO: quantity vs qty
       # TODO: SerialNumber?
     end
     transfers.each_value do |transfer|
@@ -255,6 +274,7 @@ class Jobs
       logger.debug ordernumber
       deliveries[ordernumber] = @erp_client.delivery_by_number(ordernumber) unless deliveries[ordernumber]
       deliveries[ordernumber].at_xpath("//row[@item='#{data.at_css('ArticleNumber').content}']")['movedqty'] = data.at_css('Delivered').content
+      # TODO: quantity vs qty
       # TODO: SerialNumber?
     end
     deliveries.each_value do |transfer|
