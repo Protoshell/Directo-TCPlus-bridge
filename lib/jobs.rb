@@ -96,7 +96,9 @@ class Jobs
   end
 
   def parse_response_deliveries(deliveries)
-    logger.info "Handling #{deliveries.count} delivery orders" unless deliveries.count.zero?
+    return if deliveries.count.zero?
+
+    logger.info "Handling #{deliveries.count} delivery orders"
 
     deliveries.each do |delivery|
       output, rows = handle_delivery(delivery)
@@ -148,6 +150,14 @@ class Jobs
     end
   end
 
+  def zero_to_nil(value)
+    if value.zero?
+      nil
+    else
+      value
+    end
+  end
+
   def parse_response_items(nokogiri_items)
     items = []
 
@@ -160,11 +170,7 @@ class Jobs
         name: item['name'],
         # sntype: 0 = no tracking, 1 = batch tracking, 2 = serial number tracking
         serialnumber: item.attributes['sntype']&.value.to_i,
-        weight: if item.attributes['weight']&.value.to_f.zero?
-                  nil
-                else
-                  item.attributes['weight']&.value.to_f
-                end
+        weight: zero_to_nil(item.attributes['weight']&.value.to_f)
       }
     rescue StandardError => e
       logger.error "Unable to parse item\n#{item.inspect}\n#{e}\n#{e.backtrace}"
