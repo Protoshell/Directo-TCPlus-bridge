@@ -113,6 +113,34 @@ class DirectoClient
     xml_doc.at_css('transport movement')
   end
 
+  def update_transfer(transfer)
+    raise ArgumentError unless transfer
+
+    transfer = convert_input_to_output(add_appkey_to_xml(transfer), 'transfer')
+
+    response = self.class.post(
+      "/#{@config[:organization]}/xmlcore.asp",
+      build_httparty_options('<?xml version="1.0" encoding="utf-8"?><movements>' + transfer.to_xml + '</movements>', 'movement')
+    )
+    check_update_error(response)
+
+    response
+  end
+
+  def update_delivery(delivery)
+    raise ArgumentError unless delivery
+
+    delivery = convert_input_to_output(add_appkey_to_xml(delivery), 'delivery')
+
+    response = self.class.post(
+      "/#{@config[:organization]}/xmlcore.asp",
+      build_httparty_options('<?xml version="1.0" encoding="utf-8"?><deliveries>' + delivery.to_xml + '</deliveries>', 'delivery')
+    )
+    check_update_error(response)
+
+    response
+  end
+
   def update_delivery_status(number, status)
     raise ArgumentError unless number && status
 
@@ -184,6 +212,20 @@ class DirectoClient
 
   def add_appkey_to_xml(xml)
     xml['appkey'] = @auth[:key]
+    xml
+  end
+
+  def convert_input_to_output(xml, type)
+    xml.search('.//row').each do |row|
+      # We need to rename fields for the update to Directo
+      case type
+      when 'transfer'
+        row['itemcode'] = row.delete('item') if row['item']
+        row['pickedquantity'] = row.delete('movedqty') if row['movedqty']
+      when 'delivery'
+        row['quantity'] = row.delete('qty') if row['qty']
+      end
+    end
     xml
   end
 

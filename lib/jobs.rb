@@ -22,8 +22,12 @@ class Jobs
   end
 
   def synchronize_items
-    # TODO: Move to configurations
-    hours_from_history = 6
+    hours_from_history = if @config.config('SynchronizeItemHistoryHours').nil?
+                           6
+                         else
+                           @config.config('SynchronizeItemHistoryHours')
+                         end
+
     sync_time = DateTime.now
     items = if @last_item_sync.nil?
               @erp_client.items
@@ -48,11 +52,10 @@ class Jobs
 
   def synchronize_transfers
     logger.info 'Getting new warehouse transfers'
-    # TODO: Enable status filter after search fixed
     response = @erp_client.transfers(
       {
-        'tostock' => @config.config('WarehouseLocation') # ,
-        # 'status' => @config.config('OrderStatuses')['New']
+        'tostock' => @config.config('WarehouseLocation'),
+        'status' => @config.config('OrderStatuses')['New']
       }
     )
     parse_response_transfers(response)
@@ -105,6 +108,8 @@ class Jobs
       xml.OrderData do
         xml.Order do
           xml.OrderNumber delivery['number']
+          xml.CustomerNumber delivery['customercode']
+          xml.CustomerName delivery['customername']
           xml.OrderDate Time.parse(delivery['date']).strftime('%Y-%m-%d')
         end
         xml, rows = handle_delivery_rows(delivery, xml, rows)
@@ -256,12 +261,12 @@ class Jobs
       ordernumber = data.at_css('OrderNumber').content
       transfers[ordernumber] = @erp_client.transfer_by_number(ordernumber) unless transfers[ordernumber]
       transfers[ordernumber].at_xpath("//row[@item='#{data.at_css('ArticleNumber').content}']")['movedqty'] = data.at_css('Delivered').content
-      # TODO: quantity vs qty
       # TODO: SerialNumber?
     end
     transfers.each_value do |transfer|
+      transfer['status'] = @config.config('OrderStatuses')['ReadyFromTcplus']
       logger.debug transfer.to_xml
-      # TODO: Update back to Directo
+      @erp_client.update_transfer(transfer)
     end
   end
 
@@ -274,12 +279,12 @@ class Jobs
       logger.debug ordernumber
       deliveries[ordernumber] = @erp_client.delivery_by_number(ordernumber) unless deliveries[ordernumber]
       deliveries[ordernumber].at_xpath("//row[@item='#{data.at_css('ArticleNumber').content}']")['movedqty'] = data.at_css('Delivered').content
-      # TODO: quantity vs qty
       # TODO: SerialNumber?
     end
-    deliveries.each_value do |transfer|
-      logger.debug transfer.to_xml
-      # TODO: Update back to Directo
+    deliveries.each_value do |delivery|
+      delivery['status'] = @config.config('OrderStatuses')['ReadyFromTcplus']
+      logger.debug delivery.to_xml
+      @erp_client.update_delivery(delivery)
     end
   end
 end

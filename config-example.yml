@@ -5,6 +5,7 @@ DirectoAPI:
   APIKey: "20DAF3F822B782AF12D1198C23F45604"
 
 WarehouseLocation: 'TEST'
+SynchronizeItemHistoryHours: 6
 
 OrderStatuses:
   New: "Siirrä_Varastoautomaatille"
