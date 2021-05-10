@@ -56,6 +56,7 @@ class DirectoClient
     response = self.class.get("/#{@config[:organization]}/xmlcore.asp", options)
     check_read_error(response)
 
+    logger.debug "Received deliveries: '#{response.body}'"
     if raw
       response
     else
@@ -89,6 +90,7 @@ class DirectoClient
     response = self.class.get("/#{@config[:organization]}/xmlcore.asp", options)
     check_read_error(response)
 
+    logger.debug "Received transfers: '#{response.body}'"
     if raw
       response
     else
@@ -118,10 +120,12 @@ class DirectoClient
 
     transfer = convert_input_to_output(add_appkey_to_xml(transfer), 'transfer')
 
+    logger.debug "Updating transfer: '#{transfer}'"
     response = self.class.post(
       "/#{@config[:organization]}/xmlcore.asp",
       build_httparty_options('<?xml version="1.0" encoding="utf-8"?><movements>' + transfer.to_xml + '</movements>', 'movement')
     )
+    logger.debug "Response: '#{response}'"
     check_update_error(response)
 
     response
@@ -136,6 +140,7 @@ class DirectoClient
       "/#{@config[:organization]}/xmlcore.asp",
       build_httparty_options('<?xml version="1.0" encoding="utf-8"?><deliveries>' + delivery.to_xml + '</deliveries>', 'delivery')
     )
+    logger.debug "Response: '#{response}'"
     check_update_error(response)
 
     response
@@ -153,6 +158,7 @@ class DirectoClient
       "/#{@config[:organization]}/xmlcore.asp",
       build_httparty_options('<?xml version="1.0" encoding="utf-8"?><deliveries>' + delivery.to_xml + '</deliveries>', 'delivery')
     )
+    logger.debug "Response: '#{response}'"
     check_update_error(response)
 
     response
@@ -171,6 +177,7 @@ class DirectoClient
       "/#{@config[:organization]}/xmlcore.asp",
       build_httparty_options('<?xml version="1.0" encoding="utf-8"?><movements>' + transfer.to_xml + '</movements>', 'movement')
     )
+    logger.debug "Response: '#{response}'"
     check_update_error(response)
 
     response
@@ -194,10 +201,24 @@ class DirectoClient
   end
 
   def check_update_error(response)
-    return unless !response.ok? || !response.parsed_response['results']['Result']['Type'].to_i.zero?
+    return if response.ok? && response.parsed_response['results']['Result']['Type'].to_i.zero?
+
+    result_type = nil
+    result_description = ''
+
+    begin
+      result_type = response.parsed_response['results']['Result']['Type'].to_i
+      result_description = response.parsed_response['results']['Result']['Desc']
+    rescue StandardError
+      result_type = -1
+      result_description = 'Unable to parse result error'
+    end
 
     logger.error response.inspect
-    raise DirectoTransportError, 'Unable to update delivery'
+
+    raise DirectoCommitError, "Unable to update: #{result_description}" if result_type == 3
+
+    raise DirectoTransportError, "Unable to update: #{result_description}"
   end
 
   def build_httparty_options(xmldata, type)
@@ -256,6 +277,13 @@ end
 # Unknown Order Exception
 class UnknownOrderError < StandardError
   def initialize(msg = 'Unknown order')
+    super
+  end
+end
+
+# Error for document committed, update not allowed
+class DirectoCommitError < StandardError
+  def initialize(msg = 'Error in API request')
     super
   end
 end
