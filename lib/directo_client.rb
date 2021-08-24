@@ -149,7 +149,7 @@ class DirectoClient
   def update_delivery_status(number, status)
     raise ArgumentError unless number && status
 
-    delivery = sanitize_delivery_for_status_update(delivery_by_number(number))
+    delivery = convert_input_to_output(sanitize_delivery_for_status_update(delivery), 'delivery')
     delivery['status'] = status
     delivery = add_appkey_to_xml(delivery)
 
@@ -158,6 +158,7 @@ class DirectoClient
       "/#{@config[:organization]}/xmlcore.asp",
       build_httparty_options('<?xml version="1.0" encoding="utf-8"?><deliveries>' + delivery.to_xml + '</deliveries>', 'delivery')
     )
+    logger.debug "Request: #{response.request.options[:body]}"
     logger.debug "Response: '#{response}'"
     check_update_error(response)
 
@@ -167,7 +168,7 @@ class DirectoClient
   def update_transfer_status(number, status)
     raise ArgumentError unless number && status
 
-    transfer = sanitize_transfer_for_status_update(transfer_by_number(number))
+    transfer = convert_input_to_output(sanitize_transfer_for_status_update(transfer_by_number(number)), 'transfer')
     transfer['status'] = status
     transfer = add_appkey_to_xml(transfer)
 
@@ -177,6 +178,7 @@ class DirectoClient
       "/#{@config[:organization]}/xmlcore.asp",
       build_httparty_options('<?xml version="1.0" encoding="utf-8"?><movements>' + transfer.to_xml + '</movements>', 'movement')
     )
+    logger.debug "Request: #{response.request.options[:body]}"
     logger.debug "Response: '#{response}'"
     check_update_error(response)
 
@@ -251,8 +253,6 @@ class DirectoClient
   end
 
   def sanitize_delivery_for_status_update(delivery)
-    # Rows are not needed when updating only status
-    delivery.search('.//rows').remove
     # Remove fields we don't want to update
     delivery.delete('date')
     delivery.delete('ts')
@@ -260,8 +260,6 @@ class DirectoClient
   end
 
   def sanitize_transfer_for_status_update(transfer)
-    # Rows are not needed when updating only status
-    transfer.search('.//rows').remove
     # Remove fields we don't want to update
     transfer.delete('date')
     transfer.delete('ts')

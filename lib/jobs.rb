@@ -117,6 +117,9 @@ class Jobs
       return
     end
     File.delete(filename)
+  rescue ArgumentError => e
+    logger.error "Unable to handle return file: #{filename}\n#{e.full_message}"
+    File.delete(filename)
   end
 
   def return_filenames
@@ -373,7 +376,10 @@ class Jobs
         end
       end
       orderline = documents[ordernumber].at_xpath("//row[@rn='#{data.at_css('LineNumber').content}']")
-      raise ArgumentError 'Order line not found' unless orderline
+      orderline ||= documents[ordernumber].at_xpath("//row[@item='#{data.at_css('ArticleNumber').content}']")
+      unless orderline
+        raise ArgumentError "Order line not found for row #{data.at_css('LineNumber').content} or item #{data.at_css('ArticleNumber').content}"
+      end
 
       orderline['movedqty'] =
         (orderline['movedqty'].to_i + data.at_css('Delivered').content.to_i)
