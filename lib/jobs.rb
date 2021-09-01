@@ -173,7 +173,7 @@ class Jobs
   def handle_delivery(delivery)
     rows = 0
 
-    raise ArgumentError 'Document already confirmed. Updating not possible!' if delivery['confirmed'] == '1'
+    raise ArgumentError, 'Document already confirmed. Updating not possible!' if delivery['confirmed'] == '1'
 
     customernumber = value_or_default(delivery['customercode'], '-')
     customername = value_or_default(delivery['customername'], 'Warehouse transfer')
@@ -246,7 +246,7 @@ class Jobs
       transfer_number_erp = transfer['number']
       logger.info "Handling #{transfer_number_erp}"
       transfer = prefix_number_with_type(transfer, 'T')
-      raise ArgumentError 'Document already confirmed. Updating not possible!' if transfer['confirmed'] == '1'
+      raise ArgumentError, 'Document already confirmed. Updating not possible!' if transfer['confirmed'] == '1'
 
       # TODO: Parse direction from content?
       write_transfer_output_file(transfer, direction)
@@ -378,7 +378,7 @@ class Jobs
       orderline = documents[ordernumber].at_xpath("//row[@rn='#{data.at_css('LineNumber').content}']")
       orderline ||= documents[ordernumber].at_xpath("//row[@item='#{data.at_css('ArticleNumber').content}']")
       unless orderline
-        raise ArgumentError "Order line not found for row #{data.at_css('LineNumber').content} or item #{data.at_css('ArticleNumber').content}"
+        raise ArgumentError, "Order line not found for row #{data.at_css('LineNumber').content} or item #{data.at_css('ArticleNumber').content}"
       end
 
       orderline['movedqty'] =

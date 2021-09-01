@@ -149,7 +149,7 @@ class DirectoClient
   def update_delivery_status(number, status)
     raise ArgumentError unless number && status
 
-    delivery = convert_input_to_output(sanitize_delivery_for_status_update(delivery), 'delivery')
+    delivery = convert_input_to_output(sanitize_delivery_for_status_update(delivery_by_number(number)), 'delivery')
     delivery['status'] = status
     delivery = add_appkey_to_xml(delivery)
 
