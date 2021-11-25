@@ -110,6 +110,7 @@ class DirectoClient
 
   def transfer_by_number(number)
     response = transfers({ 'number' => number }, true)
+    raise UnknownOrderError, "Unable to get transfer: #{number}" if response.parsed_response['transport'].nil?
 
     xml_doc = Nokogiri::XML(response.body)
     xml_doc.at_css('transport movement')
