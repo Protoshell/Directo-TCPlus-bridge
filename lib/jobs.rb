@@ -231,7 +231,7 @@ class Jobs
             xml.OrderedQty row['qty']
             xml.Description row['name']
             xml.Picklineinfo row['comment']
-            xml.BatchNumber row['sn'] unless row['sn'].empty?
+            xml.BatchNumber row['sn'] unless row['sn'].nil? || row['sn'].empty?
             xml.LineNumber row['rn']
           end
         end
